@@ -4,7 +4,7 @@ services:
   agent:
     build: ./agent
     ports:
-      - "8000:8000"
+      - "18000:8000"
     volumes:
       - ./data/logs:/logs
     environment:
