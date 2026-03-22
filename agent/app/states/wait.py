@@ -17,8 +17,12 @@ Description:
 import os
 import time
 import requests
+import urllib3
 from datetime import datetime
 from ..models import StateContext
+
+# Suppress SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # Assemblyline configuration
@@ -26,6 +30,70 @@ ASSEMBLYLINE_API_URL = os.getenv("ASSEMBLYLINE_API_URL", "http://localhost:5000"
 ASSEMBLYLINE_API_KEY = os.getenv("ASSEMBLYLINE_API_KEY", "")
 ASSEMBLYLINE_USERNAME = os.getenv("ASSEMBLYLINE_USERNAME", "")
 ASSEMBLYLINE_PASSWORD = os.getenv("ASSEMBLYLINE_PASSWORD", "")
+
+
+def _api_key_candidates() -> list[str]:
+    """Return likely API key header formats for Assemblyline."""
+    if not ASSEMBLYLINE_API_KEY:
+        return []
+
+    raw = ASSEMBLYLINE_API_KEY.strip()
+    candidates = [raw]
+
+    if ":" in raw:
+        candidates.append(raw.split(":", 1)[1])
+    elif ASSEMBLYLINE_USERNAME:
+        candidates.append(f"{ASSEMBLYLINE_USERNAME}:{raw}")
+
+    unique_candidates = []
+    for value in candidates:
+        if value and value not in unique_candidates:
+            unique_candidates.append(value)
+
+    return unique_candidates
+
+
+def _create_authenticated_session() -> requests.Session:
+    """Create an authenticated Assemblyline session."""
+    if ASSEMBLYLINE_USERNAME and ASSEMBLYLINE_PASSWORD:
+        session = requests.Session()
+        session.verify = False
+        login_url = f"{ASSEMBLYLINE_API_URL}/api/v4/auth/login/"
+        login_response = session.post(
+            login_url,
+            json={"user": ASSEMBLYLINE_USERNAME, "password": ASSEMBLYLINE_PASSWORD},
+            timeout=30
+        )
+        if login_response.status_code == 200:
+            xsrf = (
+                session.cookies.get("XSRF-TOKEN")
+                or session.cookies.get("csrftoken")
+                or session.cookies.get("_xsrf")
+            )
+            if xsrf:
+                session.headers.update({
+                    "X-XSRF-TOKEN": xsrf,
+                    "X-CSRFToken": xsrf,
+                })
+            return session
+
+    if ASSEMBLYLINE_API_KEY:
+        probe_url = f"{ASSEMBLYLINE_API_URL}/api/v4/submit/"
+        for key_candidate in _api_key_candidates():
+            session = requests.Session()
+            session.verify = False
+            session.headers.update({"X-APIKEY": key_candidate})
+            probe_response = session.get(probe_url, timeout=30)
+            if probe_response.status_code != 401:
+                return session
+
+    raise ValueError("Assemblyline authentication failed")
+
+
+def _get_with_auth(url: str) -> requests.Response:
+    """Call GET endpoint with a pre-authenticated session."""
+    session = _create_authenticated_session()
+    return session.get(url, timeout=30)
 
 # Polling configuration
 POLL_INTERVAL = 5  # seconds
@@ -47,22 +115,13 @@ def get_submission_status(submission_id: str) -> dict:
     
     status_url = f"{ASSEMBLYLINE_API_URL}/api/v4/submission/{submission_id}/"
     
-    auth = None
-    headers = {}
-    if ASSEMBLYLINE_API_KEY:
-        headers["X-APIKEY"] = ASSEMBLYLINE_API_KEY
-    else:
-        auth = (ASSEMBLYLINE_USERNAME, ASSEMBLYLINE_PASSWORD)
-    
     try:
-        response = requests.get(
-            status_url,
-            headers=headers,
-            auth=auth,
-            timeout=30
-        )
+        response = _get_with_auth(status_url)
         response.raise_for_status()
-        return response.json()
+        payload = response.json()
+        if isinstance(payload, dict) and isinstance(payload.get("api_response"), dict):
+            return payload["api_response"]
+        return payload
     except requests.exceptions.RequestException as e:
         raise ValueError(f"Failed to get submission status: {str(e)}")
 
@@ -77,37 +136,28 @@ def get_analysis_report(submission_id: str) -> dict:
     Returns:
         Complete analysis report JSON
     """
-    # Get status to find report_id
-    status = get_submission_status(submission_id)
-    
-    if not status.get("report_id"):
-        raise ValueError("No report_id in submission status")
-    
-    report_id = status["report_id"]
-    
     if not ASSEMBLYLINE_API_KEY and not (ASSEMBLYLINE_USERNAME and ASSEMBLYLINE_PASSWORD):
         raise ValueError("Assemblyline credentials not configured")
-    
-    report_url = f"{ASSEMBLYLINE_API_URL}/api/v4/report/{report_id}/"
-    
-    auth = None
-    headers = {}
-    if ASSEMBLYLINE_API_KEY:
-        headers["X-APIKEY"] = ASSEMBLYLINE_API_KEY
-    else:
-        auth = (ASSEMBLYLINE_USERNAME, ASSEMBLYLINE_PASSWORD)
-    
-    try:
-        response = requests.get(
-            report_url,
-            headers=headers,
-            auth=auth,
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        raise ValueError(f"Failed to get analysis report: {str(e)}")
+
+    # Assemblyline v4 exposes submission-level result endpoints.
+    report_urls = [
+        f"{ASSEMBLYLINE_API_URL}/api/v4/submission/full/{submission_id}/",
+        f"{ASSEMBLYLINE_API_URL}/api/v4/submission/{submission_id}/",
+    ]
+
+    last_error = None
+    for report_url in report_urls:
+        try:
+            response = _get_with_auth(report_url)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, dict) and isinstance(payload.get("api_response"), dict):
+                return payload["api_response"]
+            return payload
+        except requests.exceptions.RequestException as e:
+            last_error = e
+
+    raise ValueError(f"Failed to get analysis report: {str(last_error)}")
 
 
 def handle_wait(context: StateContext, timeout: int = MAX_WAIT_TIME) -> StateContext:
@@ -133,7 +183,8 @@ def handle_wait(context: StateContext, timeout: int = MAX_WAIT_TIME) -> StateCon
             # Check status
             status = get_submission_status(context.submission_id)
             
-            if status.get("state") == "completed":
+            state = status.get("state")
+            if state == "completed":
                 # Analysis complete, retrieve report
                 report = get_analysis_report(context.submission_id)
                 
@@ -142,7 +193,7 @@ def handle_wait(context: StateContext, timeout: int = MAX_WAIT_TIME) -> StateCon
                 context.status = "score"
                 return context
             
-            elif status.get("state") == "failed":
+            elif state == "failed":
                 raise ValueError(f"Analysis failed: {status.get('error', 'Unknown error')}")
             
             # Still processing, wait and retry

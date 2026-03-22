@@ -11,20 +11,20 @@ This module contains all state handlers for the analysis pipeline:
 - Respond: Generate final report and recommendations
 """
 
-from .received import ReceivedState
-from .triage import TriageState
-from .route import RouteState
-from .submit import SubmitState
-from .wait import WaitState
-from .score import ScoreState
-from .respond import RespondState
+from .received import handle_received
+from .triage import handle_triage
+from .route import handle_route
+from .submit import handle_submit
+from .wait import handle_wait
+from .score import handle_score
+from .respond import handle_respond
 
 __all__ = [
-    "ReceivedState",
-    "TriageState",
-    "RouteState",
-    "SubmitState",
-    "WaitState",
-    "ScoreState",
-    "RespondState",
+    "handle_received",
+    "handle_triage",
+    "handle_route",
+    "handle_submit",
+    "handle_wait",
+    "handle_score",
+    "handle_respond",
 ]
