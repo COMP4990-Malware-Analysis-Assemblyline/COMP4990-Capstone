@@ -20,8 +20,16 @@ Description:
 """
 
 import math
+import os
 from collections import Counter
+from pathlib import Path
 from ..models import StateContext, RiskProfile
+
+
+DEFINITIVE_RULE_NAME = "Definitive_Malware_Signature"
+DEFAULT_YARA_RULE_FILENAME = "triage_rules.yar"
+_COMPILED_YARA_RULES = None
+_COMPILED_YARA_RULES_PATH = None
 
 
 def calculate_entropy(data: bytes) -> float:
@@ -93,15 +101,76 @@ def check_yara_rules(content: bytes, filename: str) -> dict:
             - hit_count: Total number of rules triggered
             - has_definitive: Boolean if definitive malware signature found
     """
-    # TODO: Integrate YARA rule scanning when rules are available
-    # from ..rules import CORE_RULES, SUPPLEMENTARY_RULES
-    # Then load and compile rules here
-    
+    rules = get_compiled_yara_rules()
+    if rules is None:
+        return {
+            "hits": [],
+            "hit_count": 0,
+            "has_definitive": False
+        }
+
+    try:
+        matches = rules.match(data=content)
+    except Exception:
+        return {
+            "hits": [],
+            "hit_count": 0,
+            "has_definitive": False
+        }
+
+    match_names = sorted({match.rule for match in matches})
     return {
-        "hits": [],
-        "hit_count": 0,
-        "has_definitive": False
+        "hits": match_names,
+        "hit_count": len(match_names),
+        "has_definitive": DEFINITIVE_RULE_NAME in match_names
     }
+
+
+def resolve_yara_rules_path() -> Path | None:
+    """Resolve YARA rule file path for both local and container runs."""
+    env_path = os.getenv("TRIAGE_YARA_RULES_PATH")
+    states_file = Path(__file__).resolve()
+    agent_root = states_file.parents[2]
+
+    candidates = []
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    candidates.extend([
+        agent_root / DEFAULT_YARA_RULE_FILENAME,
+        agent_root / "rules" / DEFAULT_YARA_RULE_FILENAME,
+        Path("/app") / DEFAULT_YARA_RULE_FILENAME,
+        Path("/app") / "rules" / DEFAULT_YARA_RULE_FILENAME,
+    ])
+
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+
+    return None
+
+
+def get_compiled_yara_rules():
+    """Compile and cache YARA rules for reuse across triage requests."""
+    global _COMPILED_YARA_RULES
+    global _COMPILED_YARA_RULES_PATH
+
+    rules_path = resolve_yara_rules_path()
+    if rules_path is None:
+        return None
+
+    if _COMPILED_YARA_RULES is not None and _COMPILED_YARA_RULES_PATH == str(rules_path):
+        return _COMPILED_YARA_RULES
+
+    try:
+        import yara
+        compiled = yara.compile(filepath=str(rules_path))
+    except Exception:
+        return None
+
+    _COMPILED_YARA_RULES = compiled
+    _COMPILED_YARA_RULES_PATH = str(rules_path)
+    return _COMPILED_YARA_RULES
 
 
 def query_external_apis(file_hash: str) -> dict:

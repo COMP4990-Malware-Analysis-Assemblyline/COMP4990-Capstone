@@ -8,7 +8,11 @@ services:
     volumes:
       - ./data/logs:/logs
     environment:
-      - LOG_DIR=/logs
+      LOG_DIR: /logs
+      ASSEMBLYLINE_API_KEY: 'hadiyah:kK$*Zk3*l^MYvzjlJXh5egT?yGFQnnbqAe!X2HAnq84seRmf'
+      ASSEMBLYLINE_USERNAME: admin
+      ASSEMBLYLINE_PASSWORD: admin
+      ASSEMBLYLINE_API_URL: https://host.docker.internal
 
   dashboard:
     build: ./dashboard
