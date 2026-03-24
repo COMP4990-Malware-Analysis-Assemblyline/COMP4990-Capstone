@@ -1,0 +1,4 @@
+wininet.dll
+http://example.com
+This sample is intentionally crafted to trigger exactly one triage YARA rule.
+It should route to DEEP (1-3 YARA hits, no definitive malware signature).

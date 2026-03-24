@@ -45,6 +45,52 @@ def determine_recommendation(final_risk_score: float, confidence_level: str) -> 
         return Recommendation.IGNORE
 
 
+def _parse_detection_rate_percent(raw_detection_rate) -> float:
+    """Parse detection rate from score details, accepting numeric or percent text."""
+    if raw_detection_rate is None:
+        return 0.0
+
+    if isinstance(raw_detection_rate, (int, float)):
+        return float(raw_detection_rate)
+
+    if isinstance(raw_detection_rate, str):
+        text = raw_detection_rate.strip()
+        if text.endswith("%"):
+            text = text[:-1].strip()
+            try:
+                return float(text)
+            except ValueError:
+                return 0.0
+
+        try:
+            return float(text)
+        except ValueError:
+            return 0.0
+
+    return 0.0
+
+
+def should_force_ignore_low_signal_fast(context: StateContext) -> bool:
+    """Guardrail: no-signal FAST samples should not be quarantined by midpoint normalization."""
+    if not context.routing_decision or context.routing_decision.value != "FAST":
+        return False
+
+    yara_hits = context.risk_profile.yara_hits if context.risk_profile else []
+    if yara_hits:
+        return False
+
+    details = context.scoring_details or {}
+    detection_rate_percent = _parse_detection_rate_percent(details.get("detection_rate"))
+    severity_indicators = details.get("severity_indicators") or []
+    assemblyline_score = details.get("assemblyline_score")
+
+    no_detections = detection_rate_percent == 0.0
+    no_severity = len(severity_indicators) == 0
+    neutral_or_benign_score = assemblyline_score in (0, None) or (isinstance(assemblyline_score, (int, float)) and assemblyline_score < 0)
+
+    return no_detections and no_severity and neutral_or_benign_score
+
+
 def should_escalate_to_human(context: StateContext) -> bool:
     """Escalate high-risk route or uncertain medium/high outcomes for analyst review."""
     if context.routing_decision and context.routing_decision.value == "HUMAN_REVIEW":
@@ -151,11 +197,15 @@ def handle_respond(context: StateContext) -> dict:
     if context.final_risk_score is None:
         raise ValueError("final_risk_score required for response")
     
-    # Determine recommendation
-    recommendation = determine_recommendation(
-        context.final_risk_score,
-        context.confidence_level.value if context.confidence_level else "Uncertain"
-    )
+    # Determine recommendation.
+    # Guardrail prevents benign/no-signal FAST samples from being quarantined.
+    if should_force_ignore_low_signal_fast(context):
+        recommendation = Recommendation.IGNORE
+    else:
+        recommendation = determine_recommendation(
+            context.final_risk_score,
+            context.confidence_level.value if context.confidence_level else "Uncertain"
+        )
     
     escalated = should_escalate_to_human(context)
 

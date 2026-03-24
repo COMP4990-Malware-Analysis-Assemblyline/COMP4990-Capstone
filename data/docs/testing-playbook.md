@@ -55,6 +55,7 @@ Expected key fields:
 - `status`: usually `complete`
 - `final_report.analysis_summary.routing_decision`: `FAST`
 - `final_report.analysis_summary.initial_risk_profile.yara_hits`: usually `[]`
+- `recommendation`: usually `IGNORE` when FAST has no YARA hits, no detections, and no severity indicators
 
 ### Test B: Definitive signature sample (expected HUMAN_REVIEW)
 
@@ -73,12 +74,29 @@ Expected key fields:
 - `final_report.analysis_summary.initial_risk_profile.yara_hits` includes `Definitive_Malware_Signature`
 - `status`: `complete` or `pending_human_review` depending on currently running build
 
+### Test C: Controlled suspicious sample (expected DEEP)
+
+Command:
+
+```bash
+curl -s -F "file=@data/samples/deep_test.txt" http://localhost:18000/submit > /tmp/deep.json
+python3 -m json.tool /tmp/deep.json
+```
+
+Why:
+- validates the 1-3 YARA hit path that should route to DEEP.
+
+Expected key fields:
+- `final_report.analysis_summary.routing_decision`: `DEEP`
+- `final_report.analysis_summary.initial_risk_profile.yara_hits`: usually one hit (`Triage_Networking_Capability`)
+- `recommendation`: often `QUARANTINE` (depends on scoring output)
+
 ### Quick field-only view (easier to read)
 
 ```bash
 python3 - <<'PY'
 import json
-for path in ['/tmp/fast.json', '/tmp/human.json']:
+for path in ['/tmp/fast.json', '/tmp/deep.json', '/tmp/human.json']:
     with open(path) as f:
         d = json.load(f)
     a = d.get('final_report', {}).get('analysis_summary', {})
@@ -244,6 +262,18 @@ curl -s -F "file=@agent/test_payload.txt" http://localhost:18000/submit > /tmp/h
 python3 - <<'PY'
 import json
 with open('/tmp/human.json') as f:
+    d=json.load(f)
+a=d.get('final_report',{}).get('analysis_summary',{})
+print('status=',d.get('status'),'route=',a.get('routing_decision'),'rec=',d.get('recommendation'))
+print('yara_hits=',a.get('initial_risk_profile',{}).get('yara_hits',[]))
+print('trace_id=',d.get('final_report',{}).get('file_analysis',{}).get('file_id'))
+PY
+
+echo "\n=== DEEP sample ==="
+curl -s -F "file=@data/samples/deep_test.txt" http://localhost:18000/submit > /tmp/deep.json
+python3 - <<'PY'
+import json
+with open('/tmp/deep.json') as f:
     d=json.load(f)
 a=d.get('final_report',{}).get('analysis_summary',{})
 print('status=',d.get('status'),'route=',a.get('routing_decision'),'rec=',d.get('recommendation'))

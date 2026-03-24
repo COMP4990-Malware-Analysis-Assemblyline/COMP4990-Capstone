@@ -3,8 +3,8 @@ Total jobs: 6
 Passed: 6
 Failed: 0
 Pass rate: 100.0%
-Latency p50 (ms): 3790
-Latency p95 (ms): 4222
+Latency p50 (ms): 5293
+Latency p95 (ms): 6212
 
 Route distribution:
 - FAST: 4

@@ -145,6 +145,12 @@ Submit YARA-triggering sample:
 curl -F "file=@agent/test_payload.txt" http://localhost:18000/submit
 ```
 
+Submit DEEP-route sample:
+
+```bash
+curl -F "file=@data/samples/deep_test.txt" http://localhost:18000/submit
+```
+
 Watch logs live:
 
 ```bash
@@ -203,6 +209,7 @@ For escalated paths, logs include ESCALATED events and the dashboard lists those
 Expected behavior:
 
 - benign.txt usually has yara_hits as [] and routes FAST
+- deep_test.txt usually routes DEEP (1-3 YARA hits, no definitive signature)
 - test_payload.txt should include Definitive_Malware_Signature and route HUMAN_REVIEW
 
 ## Local Run (Without Docker)

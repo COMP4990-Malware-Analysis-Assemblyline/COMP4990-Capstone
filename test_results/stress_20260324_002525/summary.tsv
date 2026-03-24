@@ -1,6 +1,0 @@
-4	data/samples/suspicious_simulated.bin	200	0	1218	yes	complete	QUARANTINE	FAST	0	
-1	data/samples/benign.txt	200	0	2175	yes	complete	QUARANTINE	FAST	0	
-2	data/samples/benign.txt	200	0	3454	yes	complete	QUARANTINE	FAST	0	
-3	data/samples/suspicious_simulated.bin	200	0	4510	yes	complete	QUARANTINE	FAST	0	
-5	agent/test_payload.txt	200	0	4222	yes	complete	QUARANTINE	HUMAN_REVIEW	1	
-6	agent/test_payload.txt	200	0	4127	yes	complete	QUARANTINE	HUMAN_REVIEW	1	

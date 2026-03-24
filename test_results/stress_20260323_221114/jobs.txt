@@ -1,9 +1,0 @@
-1	data/samples/benign.txt
-2	data/samples/benign.txt
-3	data/samples/benign.txt
-4	data/samples/suspicious_simulated.bin
-5	data/samples/suspicious_simulated.bin
-6	data/samples/suspicious_simulated.bin
-7	agent/test_payload.txt
-8	agent/test_payload.txt
-9	agent/test_payload.txt
