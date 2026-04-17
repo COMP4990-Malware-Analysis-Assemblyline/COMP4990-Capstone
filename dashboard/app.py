@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import glob
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 st.title("SentinelLine Audit Dashboard")
 
@@ -30,7 +30,7 @@ def ts_to_iso(ts):
     if ts is None:
         return None
     try:
-        return datetime.utcfromtimestamp(float(ts)).isoformat() + "Z"
+        return datetime.fromtimestamp(float(ts), timezone.utc).isoformat().replace("+00:00", "Z")
     except (TypeError, ValueError):
         return None
 
