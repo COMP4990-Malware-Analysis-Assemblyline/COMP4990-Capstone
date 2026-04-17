@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from enum import Enum
@@ -70,8 +70,7 @@ class StateContext(BaseModel):
     # Audit trail
     audit_trail: List[Dict[str, Any]] = []
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class Decision(BaseModel):

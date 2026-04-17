@@ -58,7 +58,7 @@ def run_fsm(filename: str, content: bytes):
         })
         log_event("TRIAGE", {
             "file_id": context.file_id,
-            "risk_profile": context.risk_profile.dict()
+            "risk_profile": context.risk_profile.model_dump()
         }, context.file_id)
         
         # STATE 3: ROUTE

@@ -53,7 +53,6 @@ Every file goes through these states in order:
 Run these commands from project root:
 
 ```bash
-cd /home/arifh/COMP4990-Capstone
 docker compose up -d --build
 ```
 
@@ -132,11 +131,11 @@ Expected behavior:
 Agent:
 
 ```bash
-cd /home/arifh/COMP4990-Capstone/agent
+cd agent
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export LOG_DIR=/home/arifh/COMP4990-Capstone/data/logs
+export LOG_DIR="$(pwd)/../data/logs"
 export ASSEMBLYLINE_API_URL=https://localhost
 export ASSEMBLYLINE_USERNAME=admin
 export ASSEMBLYLINE_PASSWORD=admin
@@ -146,7 +145,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 Dashboard:
 
 ```bash
-cd /home/arifh/COMP4990-Capstone/dashboard
+cd dashboard
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -156,7 +155,7 @@ streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 If running local agent on port 8000, test with:
 
 ```bash
-curl -F "file=@/home/arifh/COMP4990-Capstone/data/samples/benign.txt" http://localhost:8000/submit
+curl -F "file=@data/samples/benign.txt" http://localhost:8000/submit
 ```
 
 ## Troubleshooting
