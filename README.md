@@ -84,6 +84,10 @@ ASSEMBLYLINE_API_URL: https://host.docker.internal
 ASSEMBLYLINE_USERNAME: admin
 ASSEMBLYLINE_PASSWORD: admin
 ASSEMBLYLINE_API_KEY: 'key_name:key_secret'
+# Optional external reputation enrichment:
+VIRUSTOTAL_API_KEY: your_virustotal_api_key
+VIRUSTOTAL_API_URL: https://www.virustotal.com/api/v3
+VIRUSTOTAL_TIMEOUT_SECONDS: 4
 ```
 
 Notes:

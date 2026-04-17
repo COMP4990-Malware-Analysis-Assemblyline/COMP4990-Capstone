@@ -23,6 +23,7 @@ import math
 import os
 from collections import Counter
 from pathlib import Path
+import requests
 from ..models import StateContext, RiskProfile
 
 
@@ -30,6 +31,7 @@ DEFINITIVE_RULE_NAME = "Definitive_Malware_Signature"
 DEFAULT_YARA_RULE_FILENAME = "triage_rules.yar"
 _COMPILED_YARA_RULES = None
 _COMPILED_YARA_RULES_PATH = None
+VIRUSTOTAL_API_BASE = "https://www.virustotal.com/api/v3"
 
 
 def calculate_entropy(data: bytes) -> float:
@@ -183,14 +185,45 @@ def query_external_apis(file_hash: str) -> dict:
     Returns:
         Dictionary with metadata from external APIs
     """
-    # TODO: Integrate VirusTotal API, URLhaus, etc.
-    # Requires API keys in environment variables
-    # For now, return empty metadata
-    return {
+    metadata = {
         "virustotal_detections": 0,
         "first_seen": None,
         "known_good": False
     }
+
+    if not file_hash:
+        return metadata
+
+    virustotal_api_key = os.getenv("VIRUSTOTAL_API_KEY", "").strip()
+    if not virustotal_api_key:
+        return metadata
+
+    base_url = os.getenv("VIRUSTOTAL_API_URL", VIRUSTOTAL_API_BASE).rstrip("/")
+    timeout = float(os.getenv("VIRUSTOTAL_TIMEOUT_SECONDS", "4"))
+
+    try:
+        response = requests.get(
+            f"{base_url}/files/{file_hash}",
+            headers={"x-apikey": virustotal_api_key},
+            timeout=timeout,
+        )
+
+        if response.status_code == 404:
+            return metadata
+
+        response.raise_for_status()
+        payload = response.json() if response.content else {}
+        attributes = payload.get("data", {}).get("attributes", {})
+        stats = attributes.get("last_analysis_stats", {})
+
+        detections = int(stats.get("malicious", 0)) + int(stats.get("suspicious", 0))
+        metadata["virustotal_detections"] = detections
+        metadata["first_seen"] = attributes.get("first_submission_date")
+        metadata["known_good"] = detections == 0
+    except Exception:
+        return metadata
+
+    return metadata
 
 
 def handle_triage(context: StateContext) -> StateContext:
