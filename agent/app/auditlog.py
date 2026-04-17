@@ -18,3 +18,20 @@ def log_event(state, data, trace_id=None):
         f.write(json.dumps(entry) + "\n")
 
     return trace_id
+
+
+def log_escalation(trace_id, data):
+    """Write escalated cases to a queue-like JSONL file for analyst review."""
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+    entry = {
+        "trace_id": trace_id,
+        "state": "ESCALATED",
+        "data": data,
+        "timestamp": time.time(),
+    }
+
+    with open(f"{LOG_DIR}/escalations.jsonl", "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+    return entry

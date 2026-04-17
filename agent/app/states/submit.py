@@ -132,13 +132,28 @@ def submit_to_assemblyline(
         "bin": (filename, file_content)
     }
     
-    # Prepare JSON data with analysis configuration
+    # Prepare JSON data with explicit policy controls.
+    policy_payload = {
+        "timeout": analysis_config.get("timeout", 600),
+        "deep_scan": analysis_config.get("deep_scan", False),
+        "extra_services": analysis_config.get("extra_services", []),
+        "analysis_type": analysis_config.get("analysis_type", "standard"),
+        "services": {
+            "selected": analysis_config.get("selected_services", [])
+        },
+        "metadata": {
+            "sentinelline_route": analysis_config.get("route"),
+            "sentinelline_policy_id": analysis_config.get("policy_id"),
+            "sentinelline_policy_name": analysis_config.get("display_name"),
+        },
+    }
+
+    excluded_services = analysis_config.get("excluded_services", [])
+    if excluded_services:
+        policy_payload["services"]["excluded"] = excluded_services
+
     data = {
-        "json": json.dumps({
-            "timeout": analysis_config.get("timeout", 600),
-            "deep_scan": analysis_config.get("deep_scan", False),
-            "extra_services": analysis_config.get("extra_services", [])
-        })
+        "json": json.dumps(policy_payload)
     }
     
     try:

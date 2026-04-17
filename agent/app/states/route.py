@@ -15,6 +15,7 @@ Description:
 """
 
 from ..models import StateContext, RoutingDecision
+from ..policy import get_policy_for_route
 
 
 ROUTING_RULES = {
@@ -127,25 +128,6 @@ def determine_analysis_config(routing_decision: RoutingDecision) -> dict:
     Returns:
         Configuration dict for Assemblyline submission
     """
-    configs = {
-        RoutingDecision.FAST: {
-            "timeout": 60,
-            "analysis_type": "quick",
-            "deep_scan": False,
-            "extra_services": []
-        },
-        RoutingDecision.DEEP: {
-            "timeout": 600,
-            "analysis_type": "standard",
-            "deep_scan": True,
-            "extra_services": ["yara", "pe_recommendations"]
-        },
-        RoutingDecision.HUMAN_REVIEW: {
-            "timeout": 1800,
-            "analysis_type": "comprehensive",
-            "deep_scan": True,
-            "extra_services": ["yara", "pe_recommendations", "code_analysis"]
-        }
-    }
-    
-    return configs.get(routing_decision, configs[RoutingDecision.DEEP])
+    policy = get_policy_for_route(routing_decision)
+    policy["route"] = routing_decision.value
+    return policy

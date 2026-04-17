@@ -1,0 +1,6 @@
+1	data/samples/benign.txt
+2	data/samples/benign.txt
+3	data/samples/suspicious_simulated.bin
+4	data/samples/suspicious_simulated.bin
+5	agent/test_payload.txt
+6	agent/test_payload.txt

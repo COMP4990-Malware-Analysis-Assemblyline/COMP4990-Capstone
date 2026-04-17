@@ -5,7 +5,7 @@ Orchestrates the flow through analysis states:
   Received -> Triage -> Route -> Submit -> Wait -> Score -> Respond
 """
 
-from .auditlog import log_event
+from .auditlog import log_event, log_escalation
 from .explain import explain_route
 from .models import StateContext
 from .states.received import handle_received
@@ -66,24 +66,40 @@ def run_fsm(filename: str, content: bytes):
         context = handle_route(context)
         log_state_transition(context, "route", {
             "routing_decision": context.routing_decision.value,
-            "rationale": context.routing_rationale
+            "rationale": context.routing_rationale,
+            "analysis_policy": context.analysis_config,
         })
         explanation = explain_route(context.routing_decision.value, filename)
         log_event("ROUTE", {
             "file_id": context.file_id,
             "route": context.routing_decision.value,
-            "explanation": explanation
+            "explanation": explanation,
+            "analysis_policy": context.analysis_config,
         }, context.file_id)
+
+        if context.routing_decision.value == "HUMAN_REVIEW":
+            escalation_payload = {
+                "file_id": context.file_id,
+                "filename": context.filename,
+                "route": context.routing_decision.value,
+                "routing_rationale": context.routing_rationale,
+                "policy": context.analysis_config,
+                "status": "pending_human_review",
+            }
+            log_event("ESCALATED", escalation_payload, context.file_id)
+            log_escalation(context.file_id, escalation_payload)
         
         # STATE 4: SUBMIT
         # ===============
         context = handle_submit(context)
         log_state_transition(context, "submit", {
-            "submission_id": context.submission_id
+            "submission_id": context.submission_id,
+            "analysis_policy": context.analysis_config,
         })
         log_event("SUBMIT", {
             "file_id": context.file_id,
-            "submission_id": context.submission_id
+            "submission_id": context.submission_id,
+            "analysis_policy": context.analysis_config,
         }, context.file_id)
         
         # STATE 5: WAIT
@@ -114,12 +130,36 @@ def run_fsm(filename: str, content: bytes):
         # ================
         response = handle_respond(context)
         log_state_transition(context, "respond", {
-            "recommendation": response["recommendation"]
+            "recommendation": response["recommendation"],
+            "status": response["status"],
+            "escalated": response.get("escalated", False),
         })
         log_event("RESPOND", {
             "file_id": context.file_id,
-            "recommendation": response["recommendation"]
+            "recommendation": response["recommendation"],
+            "status": response["status"],
+            "escalated": response.get("escalated", False),
+            "submission_id": context.submission_id,
+            "route": context.routing_decision.value if context.routing_decision else None,
+            "policy": context.analysis_config,
+            "final_score": context.final_risk_score,
+            "confidence": context.confidence_level.value if context.confidence_level else None,
         }, context.file_id)
+
+        if response.get("escalated", False) and context.routing_decision.value != "HUMAN_REVIEW":
+            escalation_payload = {
+                "file_id": context.file_id,
+                "filename": context.filename,
+                "route": context.routing_decision.value,
+                "routing_rationale": context.routing_rationale,
+                "policy": context.analysis_config,
+                "submission_id": context.submission_id,
+                "status": response["status"],
+                "final_score": context.final_risk_score,
+                "confidence": context.confidence_level.value if context.confidence_level else None,
+            }
+            log_event("ESCALATED", escalation_payload, context.file_id)
+            log_escalation(context.file_id, escalation_payload)
         
         return response
         
