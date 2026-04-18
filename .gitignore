@@ -37,3 +37,7 @@ htmlcov/
 
 # Logs
 data/logs/*.jsonl
+
+test_results/*
+
+agent/api_demo/results/*

@@ -1,6 +1,0 @@
-2	data/samples/benign.txt	200	0	1548	yes	complete	IGNORE	FAST	0	
-3	data/samples/suspicious_simulated.bin	200	0	3042	yes	complete	IGNORE	FAST	0	
-4	data/samples/suspicious_simulated.bin	200	0	4548	yes	complete	IGNORE	FAST	0	
-1	data/samples/benign.txt	200	0	6039	yes	complete	IGNORE	FAST	0	
-5	agent/test_payload.txt	200	0	6212	yes	pending_human_review	QUARANTINE	HUMAN_REVIEW	1	
-6	agent/test_payload.txt	200	0	6403	yes	pending_human_review	QUARANTINE	HUMAN_REVIEW	1	

@@ -115,6 +115,7 @@ JOB_FILE="$RUN_DIR/jobs.txt"
 SUMMARY_TSV="$RUN_DIR/summary.tsv"
 : > "$JOB_FILE"
 : > "$SUMMARY_TSV"
+printf 'job_id\tinput_file\thttp_code\tcurl_rc\telapsed_ms\tpassed\tstatus\trecommendation\troute\tyara_count\terror\n' >> "$SUMMARY_TSV"
 
 job_count=0
 for rel_file in "${FILES[@]}"; do
@@ -243,7 +244,13 @@ with open(summary_path, "r", encoding="utf-8") as f:
         line = line.rstrip("\n")
         if not line:
             continue
-        rows.append(line.split("\t"))
+        cols = line.split("\t")
+        if not cols:
+            continue
+        # Skip header row and malformed lines.
+        if cols[0] == "job_id" or len(cols) < 11:
+            continue
+        rows.append(cols)
 
 total = len(rows)
 passes = sum(1 for r in rows if r[5] == "yes")

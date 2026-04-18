@@ -151,6 +151,12 @@ Submit DEEP-route sample:
 curl -F "file=@data/samples/deep_test.txt" http://localhost:18000/submit
 ```
 
+Sumbit a real malicious file 
+
+```bash
+curl -F "file=@/home/arifh/malware_inbox/extracted_one/ircbot.exe" http://localhost:18000/submit
+```
+
 Watch logs live:
 
 ```bash
