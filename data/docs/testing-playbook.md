@@ -72,7 +72,7 @@ Why:
 Expected key fields:
 - `final_report.analysis_summary.routing_decision`: `HUMAN_REVIEW`
 - `final_report.analysis_summary.initial_risk_profile.yara_hits` includes `Definitive_Malware_Signature`
-- `status`: `complete` or `pending_human_review` depending on currently running build
+- `status`: `pending_human_review` on current builds (HUMAN_REVIEW routes escalate)
 
 ### Test C: Controlled suspicious sample (expected DEEP)
 
@@ -215,7 +215,10 @@ What to verify:
 
 ### "Route says HUMAN_REVIEW but status is complete"
 Possible cause:
-- older container/image still running.
+- older container/image still running, or response came from an outdated local process.
+
+Current expected behavior:
+- HUMAN_REVIEW should return `pending_human_review`.
 
 Fix:
 
