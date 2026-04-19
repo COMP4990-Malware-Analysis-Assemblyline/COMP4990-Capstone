@@ -1,8 +1,5 @@
 # SentinelLine + Assemblyline: Full Code Truth Review
 
-Date: 2026-03-24
-Scope: Current workspace code.
-
 ---
 
 ## A) Beginner-friendly explanation
@@ -179,11 +176,6 @@ It now provides:
 4. Escalation Queue Log
 - entries from escalations.jsonl
 
----
-
-## I) Honest presentation version (say out loud)
-
-"SentinelLine is a deterministic orchestration layer in front of Assemblyline. A file submitted to /submit goes through a 7-state FSM: received, triage, route, submit, wait, score, respond. Route now resolves to an explicit policy map, and submit sends policy settings including timeout, deep_scan, analysis_type, services.selected, and policy metadata. SentinelLine logs every state, computes final risk and confidence, and returns either complete or pending_human_review. Escalated cases are logged as ESCALATED events and queued in escalations.jsonl, and the dashboard surfaces both trace summaries and a Needs Analyst Review queue." 
 
 ---
 

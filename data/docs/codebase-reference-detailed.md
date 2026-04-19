@@ -1,6 +1,5 @@
 # SentinelLine Codebase Reference (Detailed)
 
-Date: 2026-03-24
 
 This document explains:
 1. What each folder and file in your codebase does.
